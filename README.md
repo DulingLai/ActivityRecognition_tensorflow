@@ -331,6 +331,40 @@ test_accuracies.append(accuracy)
 print("FINAL RESULT: " + \
       "Batch Loss = {}".format(final_loss) + \
       ", Accuracy = {}".format(accuracy))
-
 ```
 
+## Now we want to save the model, and checkpoint our training
+```python
+# export the graph
+saver = tf.train.Saver()
+MODEL_DIR = os.path.abspath("Model")
+if not os.path.exists(MODEL_DIR):
+    os.mkdir(MODEL_DIR)
+    
+tf.train.write_graph(sess.graph_def, MODEL_DIR, 'har.pbtxt')  
+saver.save(sess,save_path = "har.ckpt")
+```
+## Now tensorflow is frozen and we want to export the optimized model:
+```python
+from tensorflow.python.tools import freeze_graph
+from tensorflow.python.tools import optimize_for_inference_lib
+
+freeze_graph.freeze_graph(input_graph = MODEL_DIR + "har.pbtxt",  input_saver = "",
+             input_binary = False, input_checkpoint = "har.ckpt", output_node_names = "y_",
+             restore_op_name = "save/restore_all", filename_tensor_name = "save/Const:0",
+             output_graph = "frozen_har.pb", clear_devices = True, initializer_nodes = "")
+
+input_graph_def = tf.GraphDef()
+with tf.gfile.Open(output_frozen_graph_name, "r") as f:
+    data = f.read()
+    input_graph_def.ParseFromString(data)
+
+output_graph_def = optimize_for_inference_lib.optimize_for_inference(
+        input_graph_def,
+        ["input"], 
+        ["y_"],
+        tf.float32.as_datatype_enum)
+
+f = tf.gfile.FastGFile("optimized_har.pb", "w")
+f.write(output_graph_def.SerializeToString())
+```
